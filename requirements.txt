@@ -1,0 +1,19 @@
+# Framework web y servidor ASGI
+fastapi[standard]
+uvicorn
+
+# Asincronia
+anyio
+
+# Persistencia
+sqlmodel>=0.0.24
+SQLAlchemy[asyncio]>=2.0
+asyncpg>=0.30
+
+# Migraciones
+alembic>=1.13
+
+# Lectura del archivo .env
+python-dotenv>=1.0
+
+bcrypt
