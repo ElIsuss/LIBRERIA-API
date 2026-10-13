@@ -21,8 +21,8 @@
  AVANCE
 --------------------------------------------------------------------------------
 
-   Etapas completadas : 7 de 14
-   Peso acumulado     : 100 de 100 puntos
+    Etapas completadas : 8 de 14
+    Peso acumulado     : 100 de 100 puntos
 
 
 --------------------------------------------------------------------------------
@@ -374,19 +374,67 @@
      Estado: COMPLETADA el 2026-10-13
 
 
-[ ] ETAPA 8 - Libros: alta con autores y busqueda                    [ 20%]
+[X] ETAPA 8 - Libros: alta con autores y busqueda                    [ 20%]
 
-     Objetivo: el primer caso de alta con relaciones.
+      Objetivo: el primer caso de alta con relaciones.
 
-     Conceptos clave:
-       - El alta recibe editorial_id, genero_id y la lista de autores
-       - Cada autor viaja con autor_id mas rol y orden
-       - Sin if consultando antes: se escribe y la base rechaza (409)
-       - Filtro por titulo con parametros ligados, sin SQL armado (RN-11)
-       - Precargas: joinedload para editorial y genero,
-         selectinload para las|autorias|
+      Archivos:
+        - app/modules/libros/schemas.py     AutoriaCreate, LibroCreate,
+                                             LibroUpdate, LibroDetalle,
+                                             LibroLista (+ LibroResumen
+                                             repuesto: lo importa
+                                             generos/router.py)
+        - app/modules/libros/service.py     crear, listar, obtener_por_id,
+                                             actualizar
+        - app/modules/libros/router.py      4 endpoints
+        - app/main.py                        + registro del router
 
-     Estado: pendiente
+      Endpoints:
+        POST   /libros/                201, 409, 422
+        GET    /libros/                200, 422  (limit 1-100 def 20,
+                                                 offset >= 0, titulo,
+                                                 genero_id)
+        GET    /libros/{id}            200, 404, 422
+        PATCH  /libros/{id}            200, 404, 409, 422
+
+      Conceptos clave:
+        - El alta recibe editorial_id, genero_id y la lista de autores
+        - Cada autor viaja con autor_id mas rol y orden
+        - Sin if consultando antes: se escribe y la base rechaza (409)
+        - Filtro por titulo con parametros ligados, sin SQL armado (RN-11)
+        - Precargas: joinedload para editorial y genero,
+          selectinload para las autorias y sus autores
+        - El flush con autoflush=False es lo que asigna libro.id antes
+          de insertar las filas de libro_autor
+        - El PATCH no toca autores: LibroUpdate no tiene ese campo
+
+      Decisiones tomadas:
+        - Autor duplicado en la misma lista -> lo rechaza la PK
+          (libro_id, autor_id) y se responde 409, sin validacion previa
+          en Python. Coherente con "sin if consultando antes".
+        - PATCH {} no toca nada; PATCH {"genero_id": null} desvincula
+          el genero (se distingue con exclude_unset=True).
+        - PATCH con isbn de otro libro -> 409.
+        - Regla de la etapa 6 respetada: todo listado ordena por
+          (titulo, id) antes de limitar.
+
+      Verificado: 41 pruebas, 41 correctas, 0 fallidas (2026-10-13,
+        PostgreSQL 18.4, base creada + upgrade head a d29720c70b22).
+        Incluye 201 con detalle completo (editorial, genero, autores
+        con rol y orden; precio como string '21000.00'), 409 con isbn
+        repetido / editorial inexistente / autor inexistente / autor
+        duplicado en lista (C-04, mensaje propio sin texto de la base,
+        y sin dejar fila), 422 (precio 0, rol invalido, limit 0/101,
+        offset negativo, id no entero C-01), 404 en GET y PATCH,
+        filtro case-insensitive, filtro por genero_id, paginacion
+        estable, C-08 (' OR '1'='1 -> 200 []), y N+1 fijo: el detalle
+        emite 3 consultas con 2 autores y 3 con 5 autores.
+
+      Datos de prueba que quedaron en la base: 2 editoriales, 1 genero,
+        5 autores y 3 libros con nombre "TEST ...". Son de desarrollo;
+        la Etapa 13 (seed) los puede reemplazar o convivir con ellos.
+
+      Estado: COMPLETADA el 2026-10-13
 
 
 [ ] ETAPA 9 - Clientes y perfil uno a uno                              [ 20%]

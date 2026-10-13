@@ -10,6 +10,7 @@ from app.modules import *  # noqa: F401,F403  registra todos los modelos en SQLM
 from app.modules.autores.router import router as autores_router
 from app.modules.editoriales.router import router as editoriales_router
 from app.modules.generos.router import router as generos_router
+from app.modules.libros.router import router as libros_router
 
 
 @asynccontextmanager
@@ -27,6 +28,7 @@ app = FastAPI(title="Libreria API", version="1.0.0", lifespan=lifespan)
 app.include_router(editoriales_router)
 app.include_router(generos_router)
 app.include_router(autores_router)
+app.include_router(libros_router)
 
 
 @app.get("/health/live")
