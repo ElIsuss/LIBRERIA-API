@@ -21,7 +21,7 @@
  AVANCE
 --------------------------------------------------------------------------------
 
-   Etapas completadas : 6 de 14
+   Etapas completadas : 7 de 14
    Peso acumulado     : 100 de 100 puntos
 
 
@@ -256,22 +256,122 @@
          modelos no estaban todos registrados. Se creo el registro central
          en app/modules/__init__.py, que main.py importa.
 
+     Correccion posterior (2026-10-13):
+        - Los listados se hacian con LIMIT y OFFSET pero sin ORDER BY.
+          PostgreSQL no garantiza un orden cuando no hay ORDER BY, asi que
+          una pagina podia repetir filas o saltear otras.
+        - listar ahora ordena por Editorial.nombre. Como nombre es UNIQUE,
+          el orden es total y la paginacion queda estable.
+        - listar_libros ordena por Libro.titulo y despues por Libro.id.
+          El id va al final a proposito: dos libros pueden tener el mismo
+          titulo, y el desempate por id es lo que vuelve total el orden.
+        - Regla para las etapas 7 a 13: todo listado ordena antes de
+          limitar. Si la columna por la que se ordena no es unica, el
+          desempate va por id.
+
      Verificado: 29 pruebas, 29 correctas, 0 fallidas.
        Incluye 201, 404, 409, 422, paginacion con offset real, y que el
        409 no filtre nombres de restricciones ni texto de PostgreSQL.
+       Ademas, tras la correccion del ORDER BY: las 4 editoriales salen en
+       orden alfabetico, limit=1 recorre las 4 paginas sin repetir ni
+       saltear, y limit=2 con offset 0, 2, 4 y 6 no se pisan entre si.
+       Los 404 y los 422 siguen igual.
 
      Estado: COMPLETADA el 2026-10-10
 
 
-[ ] ETAPA 7 - Contratos y CRUD de generos y autores                   [ 15%]
+[X] ETAPA 7 - Contratos y CRUD de generos y autores                   [ 15%]
 
      Objetivo: replicar la plantilla de la etapa 6.
+
+     Archivos:
+       - app/modules/generos/schemas.py   GeneroCreate, GeneroRead
+       - app/modules/generos/service.py   crear, listar, obtener_por_id,
+                                          listar_libros
+       - app/modules/generos/router.py    3 endpoints
+       - app/modules/autores/schemas.py   AutorCreate, AutorUpdate,
+                                          AutorRead, AutoriaRead
+       - app/modules/autores/service.py   crear, obtener_por_id,
+                                          actualizar, listar_libros
+       - app/modules/autores/router.py    4 endpoints
+       - app/modules/libros/schemas.py    LibroResumen (DTO compartido)
+       - app/main.py                      +2 routers
+
+     Endpoints:
+       POST   /generos/               201, 409, 422
+       GET    /generos/               200, 422  (limit 1-100 def 20, offset >= 0)
+       GET    /generos/{id}/libros    200, 404, 422
+       POST   /autores/               201, 422
+       GET    /autores/{id}           200, 404, 422
+       PATCH  /autores/{id}           200, 404, 422
+       GET    /autores/{id}/libros    200, 404, 422
 
      Conceptos clave:
        - GET /autores/{id}/libros devuelve rol y orden
        - Sin unicidad en autor, por eso no hay 409
+       - Rol y orden NO viven en libro ni en autor: viven en libro_autor.
+         Por eso la consulta no puede ser "los libros del autor 3" sino
+         un select que trae Libro mas las dos columnas de libro_autor,
+         united por un join en la misma consulta.
+       - AutoriaRead no lleva from_attributes: sus datos salen de dos
+         tablas, asi que no hay un solo objeto del cual leerlos y se
+         construye campo por campo. Los demas Read si lo llevan.
+       - session.exec() acepta un select de varias tablas y devuelve
+         tuplas; se comprobo antes de escribir el service.
+       - El 409 es la TRADUCCION de una negativa de la base. Sin
+         restriccion que la base pueda aplicar, no hay nada que
+         traducir. Por eso autores/service.py:crear no tiene el
+         try/except IntegrityError que si tiene generos.
+       - Sin try/except no se pierde nada: la unica barrera posible en
+         el alta de un autor es el DTO, y ahi el codigo es 422.
 
-     Estado: pendiente
+     Decisiones tomadas:
+       - GET /generos/ se pagina aunque la consigna lo liste "sin
+         cuerpo": manda RN-10. Por el mismo motivo los dos listados de
+         sub-recursos (/generos/{id}/libros y /autores/{id}/libros)
+         tambien llevan limit y offset.
+       - No se agregan GET /generos/{id} ni GET /autores/ porque la
+         consigna no los pide y el criterio es "modulos minimos".
+       - No hay GeneroUpdate: sin PATCH /generos/{id} seria un DTO
+         muerto.
+       - LibroResumen ahora vive en libros/schemas.py, que es su
+         lugar natural. Queda una copia identica en
+         editoriales/schemas.py sin tocar, porque la etapa 6 esta
+         cerrada; consolidar es un cambio de un minuto.
+       - Los campos desconocidos se ignoran en silencio, que es el
+         comportamiento por defecto de Pydantic. No se aplica
+         extra="forbid": cambiaria el contrato de los modulos ya
+         cerrados y la consigna no lo pide.
+
+     Verificado:
+       - 201 en POST /generos/ y en POST /autores/
+       - 409 con genero repetido: mensaje propio, sin una sola palabra
+         del texto de la base, y sin dejar fila (asi se prueba que el
+         rollback de service.py funciona)
+       - Dos autores identicos se crean los dos (201 y 201). No es un
+         olvido: lo confirman tres lugares de la consigna, la tabla del
+         modelo dice "Sin restricciones extra" para autor, RN-01 y
+         RN-02 solo mencionan ISBN y email, y la tabla de endpoints
+         lista 201, 422 para POST /autores/ contra 201, 409 para
+         POST /generos/.
+       - PATCH parcial: cambia el nombre y deja la nacionalidad
+         intacta. Sin exclude_unset=True la nacionalidad volveria a
+         None y la base la rechazaria por NOT NULL. PATCH {} tampoco
+         toca nada.
+       - 404 en GET, PATCH y /libros sobre id inexistente
+       - 422 con id no entero (C-01) y con limit 0, limit 101 u
+         offset negativo
+       - El 404 corta antes del join: la peticion emite 1 sola
+         consulta SQL, el SELECT del autor. El join con libro_autor no
+         llega a ejecutarse.
+       - C-07: /autores/{id}/libros con 3 libros y con 1 libro emite 2
+         consultas en los dos casos. El numero no crece con la cantidad
+         de libros.
+       - Paginacion de /autores/{id}/libros: limit=1 recorre las 3
+         paginas sin repetir ni saltear; offset fuera de rango da [].
+       - El precio se serializa como '1000.00', string, no float.
+
+     Estado: COMPLETADA el 2026-10-13
 
 
 [ ] ETAPA 8 - Libros: alta con autores y busqueda                    [ 20%]
@@ -360,11 +460,11 @@
 ================================================================================
 
  - Reparto en el grupo:
-     etapas 0 a 6  : primer integrador (este repo, avance actual)  [completo]
-     etapa 7       : pendiente, arrancar con generos
+     etapas 0 a 7  : primer integrador (este repo, avance actual)  [completo]
      etapas 8 a 13 : companeros de grupo
-   Las etapas 0 a 6 cubren el 100% de los criterios de evaluacion de la
-   consigna.
+   Las etapas 0 a 6 ya cubren el 100% de los criterios de evaluacion
+   de la consigna. La etapa 7 no suma criterios nuevos: es mas de la
+   categoria "Contratos y CRUD", asi que el peso acumulado no se mueve.
 
  - Al cerrar cada etapa, actualizar el estado y los contadores de este
    archivo.

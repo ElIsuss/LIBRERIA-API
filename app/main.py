@@ -7,7 +7,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.database import create_engine, create_session_factory
 from app.modules import *  # noqa: F401,F403  registra todos los modelos en SQLModel.metadata
+from app.modules.autores.router import router as autores_router
 from app.modules.editoriales.router import router as editoriales_router
+from app.modules.generos.router import router as generos_router
 
 
 @asynccontextmanager
@@ -23,6 +25,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Libreria API", version="1.0.0", lifespan=lifespan)
 app.include_router(editoriales_router)
+app.include_router(generos_router)
+app.include_router(autores_router)
 
 
 @app.get("/health/live")

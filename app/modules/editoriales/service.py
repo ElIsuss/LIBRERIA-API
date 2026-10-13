@@ -27,7 +27,7 @@ async def crear(session: AsyncSession, datos: EditorialCreate) -> Editorial:
 
 
 async def listar(session: AsyncSession, limit: int, offset: int) -> list[Editorial]:
-    statement = select(Editorial).limit(limit).offset(offset)
+    statement = select(Editorial).order_by(Editorial.nombre).limit(limit).offset(offset)
     result = await session.exec(statement)
     return list(result.all())
 
@@ -73,6 +73,10 @@ async def actualizar(
 async def listar_libros(session: AsyncSession, editorial_id: int) -> list[Libro]:
     await obtener_por_id(session, editorial_id)
 
-    statement = select(Libro).where(Libro.editorial_id == editorial_id)
+    statement = (
+        select(Libro)
+        .where(Libro.editorial_id == editorial_id)
+        .order_by(Libro.titulo, Libro.id)
+    )
     result = await session.exec(statement)
     return list(result.all())
