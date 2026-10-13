@@ -21,7 +21,7 @@
  AVANCE
 --------------------------------------------------------------------------------
 
-    Etapas completadas : 8 de 14
+    Etapas completadas : 9 de 14
     Peso acumulado     : 100 de 100 puntos
 
 
@@ -437,16 +437,62 @@
       Estado: COMPLETADA el 2026-10-13
 
 
-[ ] ETAPA 9 - Clientes y perfil uno a uno                              [ 20%]
+[X] ETAPA 9 - Clientes y perfil uno a uno                              [ 20%]
 
-     Objetivo: el caso del UNIQUE en una relacion uno a uno.
+      Objetivo: el caso del UNIQUE en una relacion uno a uno.
 
-     Conceptos clave:
-       - POST /clientes/{id}/perfil: el segundo perfil da 409 (RN-09)
-       - Cliente.perfil es un objeto, no una lista
-       - GET /clientes/{id} devuelve el cliente con su perfil
+      Archivos:
+        - app/modules/clientes/schemas.py    ClienteCreate / Update / Read,
+                                             PerfilCreate / PerfilRead
+                                             (email con EmailStr)
+        - app/modules/clientes/service.py    crear_cliente, obtener_por_id,
+                                             actualizar, crear_perfil
+        - app/modules/clientes/router.py     4 endpoints
+        - app/main.py                        + registro del router
 
-     Estado: pendiente
+      Endpoints:
+        POST   /clientes/               201, 409, 422
+        GET    /clientes/{id}           200, 404, 422
+        PATCH  /clientes/{id}           200, 404, 409, 422
+        POST   /clientes/{id}/perfil    201, 404, 409, 422
+
+      Conceptos clave:
+        - POST /clientes/{id}/perfil: el segundo perfil da 409 (RN-09)
+        - Cliente.perfil es un objeto, no una lista
+        - GET /clientes/{id} devuelve el cliente con su perfil
+        - joinedload para el uno a uno: el detalle sale en 1 consulta
+        - El 404 del cliente va ANTES de insertar el perfil: sin
+          cliente no hay perfil que crear, y el codigo correcto es
+          404 aunque la FK tambien rechazaria
+
+      Problemas encontrados y resueltos:
+        - crear_cliente armaba el DTO sobre el objeto recien creado,
+          que nunca habia cargado perfil: leer cliente.perfil
+          disparaba una carga perezosa (prohibida por la consigna y
+          que en async falla con MissingGreenlet). Se agrego
+          await session.refresh(cliente, ["perfil"]) tras el commit:
+          1 consulta eager, nada perezoso.
+
+      Decisiones tomadas:
+        - GET /clientes/{id}/ventas queda para la Etapa 10: su
+          respuesta necesita los DTOs de venta, que viven ahi.
+        - Email con formato validado (EmailStr de Pydantic): el 422
+          por formato invalido sale antes de tocar la base.
+
+      Verificado: 24 pruebas, 24 correctas, 0 fallidas (2026-10-13).
+        Incluye 201 de cliente (con perfil null) y de perfil, C-02
+        (email repetido, 409 con mensaje propio sin texto de la base),
+        C-03 (segundo perfil, 409, sin dejar fila: el GET sigue
+        mostrando el primero), 404 en GET/PATCH/perfil sobre id
+        inexistente, 409 en PATCH con email de otro cliente, 422
+        (email invalido, cuerpo incompleto, id no entero C-01),
+        PATCH {} sin cambios, y detalle en 1 sola consulta con y
+        sin perfil.
+
+      Datos de prueba que quedaron en la base: 3 clientes "TEST ..."
+        (uno con perfil). Se suman a los de la Etapa 8.
+
+      Estado: COMPLETADA el 2026-10-13
 
 
 [ ] ETAPA 10 - Ventas: alta con renglones anidados                     [ 20%]
