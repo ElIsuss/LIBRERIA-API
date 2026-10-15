@@ -6,6 +6,14 @@ barrio. FastAPI + SQLModel + PostgreSQL + Alembic.
 Trabajo práctico de Programación III — Unidades 1 a 4: *Del objeto a la
 persistencia*.
 
+## Grupo: LOS JAVAS
+
+### Integrantes:
+- Isaias Morinigo — 54011
+- Giovanna Suarez — 51650
+- Juan Ignacio — 53882
+- Gaston Puente — 52735
+
 ---
 
 ## Requisitos
@@ -73,8 +81,11 @@ Para verificar en qué versión está la base:
 
 ### 6. Carga de datos iniciales
 
-> **Pendiente.** Falta el script de seed que deja la base en un estado inicial
-> conocido. La consigna lo pide como parte de la entrega.
+```powershell
+python -m app.seed
+```
+
+Esto puebla la base de datos con editoriales, géneros, autores, libros y clientes de prueba.
 
 ### 7. Arrancar el servidor
 
@@ -172,4 +183,25 @@ es como se verifica que no haya problemas de carga por relación (N+1).
 
 ## Casos de prueba
 
-> **Pendiente.** Faltan los archivos `.http` con los casos C-01 a C-08.
+Los casos de prueba (C-01 a C-08) se encuentran en la carpeta `test/casos_iniciales.http` y pueden ejecutarse con la extensión *REST Client* de VS Code.
+
+---
+
+## Evidencia del caso C-07
+
+Fragmento real de la consola con `ECHO_SQL=true` al consultar el detalle de un libro (`GET /libros/2`):
+
+```text
+2026-10-13 23:10:31,096 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-13 23:10:31,137 INFO sqlalchemy.engine.Engine SELECT libro.id, libro.isbn, libro.titulo, libro.precio, libro.stock, libro.editorial_id, libro.genero_id, editorial_1.id AS id_1, editorial_1.nombre, editorial_1.pais, genero_1.id AS id_2, genero_1.nombre AS nombre_1 
+FROM libro LEFT OUTER JOIN editorial AS editorial_1 ON editorial_1.id = libro.editorial_id LEFT OUTER JOIN genero AS genero_1 ON genero_1.id = libro.genero_id 
+WHERE libro.id = $1::INTEGER
+2026-10-13 23:10:31,192 INFO sqlalchemy.engine.Engine SELECT libro_autor.libro_id, libro_autor.autor_id, libro_autor.rol, libro_autor.orden 
+FROM libro_autor 
+WHERE libro_autor.libro_id IN ($1::INTEGER)
+2026-10-13 23:10:31,230 INFO sqlalchemy.engine.Engine SELECT autor.id, autor.nombre, autor.nacionalidad 
+FROM autor 
+WHERE autor.id IN ($1::INTEGER)
+INFO:     127.0.0.1:50338 - "GET /libros/2 HTTP/1.1" 200 OK
+2026-10-13 23:10:31,250 INFO sqlalchemy.engine.Engine ROLLBACK
+```

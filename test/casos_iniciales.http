@@ -1,0 +1,110 @@
+@baseUrl = http://localhost:8000
+
+### ==============================================================================
+### CASOS DE PRUEBA INICIALES (C-01 a C-04)
+### ==============================================================================
+
+### C-01: Un parámetro de ruta que no es entero
+# Resultado esperado: 422 Unprocessable Entity (sin ejecutar el handler)
+GET {{baseUrl}}/editoriales/abc
+
+
+### C-02: Email o ISBN repetido
+# 1. Crear primer cliente con email único
+POST {{baseUrl}}/clientes/
+Content-Type: application/json
+
+{
+  "nombre": "Juan Pérez",
+  "email": "juan@example.com"
+}
+
+### 2. Intentar crear otro cliente con el mismo email
+# Resultado esperado: 409 Conflict con mensaje propio
+POST {{baseUrl}}/clientes/
+Content-Type: application/json
+
+{
+  "nombre": "María Gómez",
+  "email": "juan@example.com"
+}
+
+
+### C-03: Segundo perfil para el mismo cliente
+# 1. Crear perfil válido para el cliente 1
+POST {{baseUrl}}/clientes/1/perfil
+Content-Type: application/json
+
+{
+  "telefono": "123456789",
+  "direccion": "Calle Falsa 123"
+}
+
+### 2. Intentar crear un segundo perfil para el mismo cliente 1
+# Resultado esperado: 409 Conflict
+POST {{baseUrl}}/clientes/1/perfil
+Content-Type: application/json
+
+{
+  "telefono": "987654321",
+  "direccion": "Otra Calle 456"
+}
+
+
+### C-04: Libro con una editorial o un autor inexistente
+# Intentar crear un libro con editorial_id 9999 (inexistente)
+# Resultado esperado: 409 Conflict con mensaje propio
+POST {{baseUrl}}/libros/
+Content-Type: application/json
+
+{
+  "isbn": "978-950-00-0001-1",
+  "titulo": "Libro Pruebas",
+  "precio": "15000.00",
+  "stock": 10,
+  "editorial_id": 9999,
+  "autores": [
+    { "autor_id": 1, "rol": "autor", "orden": 1 }
+  ]
+}
+
+
+### C-05: Venta con un cliente o un libro inexistente
+# Resultado esperado: 409 Conflict
+POST {{baseUrl}}/ventas/
+Content-Type: application/json
+
+{
+  "cliente_id": 9999,
+  "renglones": [
+    { "libro_id": 1, "cantidad": 2 }
+  ]
+}
+
+
+### C-06: Venta válida con dos renglones
+# Resultado esperado: 201 Created con el total calculado y precios copiados
+POST {{baseUrl}}/ventas/
+Content-Type: application/json
+
+{
+  "cliente_id": 1,
+  "renglones": [
+    { "libro_id": 3, "cantidad": 2 },
+    { "libro_id": 2, "cantidad": 1 }
+  ]
+}
+
+
+### C-08: Búsqueda por título con texto malicioso (' OR '1'='1)
+# Resultado esperado: 200 OK con lista vacía [] (parámetros ligados seguros)
+GET {{baseUrl}}/libros/?titulo=%27%20OR%20%271%27=%271
+
+
+
+### C-07: Detalle de un libro (evidencia de cantidad fija de consultas sin N+1)
+# Resultado esperado: 200 OK con detalle del libro, editorial, género y autores (emite número fijo de consultas SQL)
+GET {{baseUrl}}/libros/2
+
+### Listar libros para ver IDs disponibles
+GET {{baseUrl}}/libros/

@@ -21,7 +21,7 @@
  AVANCE
 --------------------------------------------------------------------------------
 
-    Etapas completadas : 9 de 14
+    Etapas completadas : 14 de 14
     Peso acumulado     : 100 de 100 puntos
 
 
@@ -495,7 +495,7 @@
       Estado: COMPLETADA el 2026-10-13
 
 
-[ ] ETAPA 10 - Ventas: alta con renglones anidados                     [ 20%]
+[X] ETAPA 10 - Ventas: alta con renglones anidados                     [ 20%]
 
      Objetivo: el caso de composicion y de reglas calculadas.
 
@@ -506,10 +506,10 @@
        - RN-07  el total lo calcula el servidor
        - RN-08  las ventas no se modifican: no hay PATCH
 
-     Estado: pendiente
+     Estado: COMPLETADA el 2026-10-14
 
 
-[ ] ETAPA 11 - Lecturas sin N+1                                       [ 10%]
+[X] ETAPA 11 - Lecturas sin N+1                                       [ 10%]
 
      Objetivo: que el detalle de un libro y de una venta use una cantidad
                FIJA de consultas, sin importar cuantos autores o renglones
@@ -520,10 +520,10 @@
        - Comparar la cantidad de consultas con 1 autor y con 5 autores
        - El numero tiene que ser el mismo (evidencia del caso C-07)
 
-     Estado: pendiente
+     Estado: COMPLETADA el 2026-10-14
 
 
-[ ] ETAPA 12 - Asincronia sin bloqueos y aviso en segundo plano        [ 10%]
+[X] ETAPA 12 - Asincronia sin bloqueos y aviso en segundo plano        [ 10%]
 
      Objetivo: que ningun handler bloquee el event loop.
 
@@ -533,10 +533,10 @@
        - El aviso simula espera con await asyncio.sleep(0.5) y un log
        - Corre DESPUES de enviar la respuesta
 
-     Estado: pendiente
+     Estado: COMPLETADA el 2026-10-14
 
 
-[ ] ETAPA 13 - Seed, casos de prueba y README                         [   -]
+[X] ETAPA 13 - Seed, casos de prueba y README                         [   -]
 
      Objetivo: dejar el proyecto entregable.
 
@@ -546,7 +546,7 @@
        - README.md con los pasos para levantar desde cero
        - Evidencia del caso C-07 (captura de la consola)
 
-     Estado: pendiente
+     Estado: COMPLETADA el 2026-10-14
 
 
 ================================================================================
