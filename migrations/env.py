@@ -14,6 +14,7 @@ from app.modules.clientes import models as clientes_models
 from app.modules.editoriales import models as editoriales_models
 from app.modules.generos import models as generos_models
 from app.modules.libros import models as libros_models
+from app.modules.usuarios import models as usuarios_models
 from app.modules.ventas import models as ventas_models
 
 config = context.config

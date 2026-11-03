@@ -1,11 +1,19 @@
 import asyncio
+import sys
 from decimal import Decimal
+from pathlib import Path
+
+if __package__ in {None, ""}:
+    ROOT = Path(__file__).resolve().parents[1]
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+
 from app.core.database import create_engine, create_session_factory
+from app.modules.autores.models import Autor
+from app.modules.clientes.models import Cliente, PerfilCliente
 from app.modules.editoriales.models import Editorial
 from app.modules.generos.models import Genero
-from app.modules.autores.models import Autor
 from app.modules.libros.models import Libro, LibroAutor
-from app.modules.clientes.models import Cliente, PerfilCliente
 
 
 async def seed() -> None:
@@ -13,7 +21,7 @@ async def seed() -> None:
     session_factory = create_session_factory(engine)
 
     async with session_factory() as session:
-        print("🌱 Iniciando carga de datos iniciales (seed)...")
+        print("Iniciando carga de datos iniciales (seed)...")
 
         # 1. Editoriales
         e1 = Editorial(nombre="Sudamericana", pais="Argentina")
@@ -81,7 +89,7 @@ async def seed() -> None:
         session.add(p1)
 
         await session.commit()
-        print("✅ Datos iniciales cargados con éxito (3 libros creados).")
+        print("Datos iniciales cargados con exito (3 libros creados).")
 
     await engine.dispose()
 

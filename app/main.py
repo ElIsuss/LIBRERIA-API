@@ -1,18 +1,25 @@
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import async_sessionmaker
-from sqlmodel.ext.asyncio.session import AsyncSession
+import bcrypt
+from fastapi import APIRouter, FastAPI
 
+from app.core.config import settings
 from app.core.database import create_engine, create_session_factory
 from app.modules import *  # noqa: F401,F403  registra todos los modelos en SQLModel.metadata
 from app.modules.autores.router import router as autores_router
 from app.modules.clientes.router import router as clientes_router
 from app.modules.editoriales.router import router as editoriales_router
 from app.modules.generos.router import router as generos_router
+from app.modules.health.router import router as health_router
 from app.modules.libros.router import router as libros_router
 from app.modules.ventas.router import router as ventas_router
+
+logging.basicConfig(
+    level=logging.INFO if settings.sql_echo else logging.WARNING,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
 
 
 @asynccontextmanager
@@ -20,29 +27,26 @@ async def lifespan(app: FastAPI):
     engine = create_engine()
     app.state.engine = engine
     app.state.session_factory = create_session_factory(engine)
+    app.state.dummy_hash = await asyncio.to_thread(
+        lambda: bcrypt.hashpw(b"dummy-password", bcrypt.gensalt(rounds=settings.bcrypt_rounds)).decode("utf-8")
+    )
     try:
         yield
     finally:
         await engine.dispose()
 
 
+open_router = APIRouter()
+protected_router = APIRouter()
+
+open_router.include_router(health_router)
+open_router.include_router(editoriales_router)
+open_router.include_router(generos_router)
+open_router.include_router(autores_router)
+open_router.include_router(libros_router)
+protected_router.include_router(clientes_router)
+protected_router.include_router(ventas_router)
+
 app = FastAPI(title="Libreria API", version="1.0.0", lifespan=lifespan)
-app.include_router(editoriales_router)
-app.include_router(generos_router)
-app.include_router(autores_router)
-app.include_router(libros_router)
-app.include_router(clientes_router)
-app.include_router(ventas_router)
-
-
-@app.get("/health/live")
-async def live() -> dict[str, str]:
-    return {"estado": "vivo"}
-
-
-@app.get("/health/ready")
-async def ready(request: Request) -> dict[str, str]:
-    session_factory: async_sessionmaker[AsyncSession] = request.app.state.session_factory
-    async with session_factory() as session:
-        await session.execute(text("SELECT 1"))
-    return {"estado": "listo", "base": "accesible"}
+app.include_router(open_router)
+app.include_router(protected_router)

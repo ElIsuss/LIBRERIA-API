@@ -4,6 +4,7 @@ from sqlalchemy import Column, ForeignKey, Integer, String, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
+    from app.modules.usuarios.models import Usuario
     from app.modules.ventas.models import Venta
 
 
@@ -13,7 +14,18 @@ class Cliente(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     nombre: str = Field(sa_column=Column(String(200), nullable=False))
     email: str = Field(sa_column=Column(String(254), unique=True, index=True, nullable=False))
+    usuario_id: int | None = Field(
+        default=None,
+        sa_column=Column(
+            Integer,
+            ForeignKey("usuario.id", ondelete="SET NULL"),
+            unique=True,
+            index=True,
+            nullable=True,
+        ),
+    )
 
+    usuario: "Usuario" = Relationship(back_populates="cliente")
     perfil: "PerfilCliente" = Relationship(back_populates="cliente")
     ventas: list["Venta"] = Relationship(back_populates="cliente")
 

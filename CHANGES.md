@@ -87,7 +87,7 @@ Paso │ Agente A (Core / Seguridad)        │ Agente B (Dominio / Transaccione
 ## FASE 0 — Configuración, Ciclo de Vida y Esquema de Datos (Ejercicios 1, 2 y 7a)
 
 ### [C-01] `config-lifespan-health`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` completado
 - **Scope**: Configuración con `pydantic-settings`, ciclo de vida (`lifespan`), sondas de salud y estructura de dos grupos de rutas en `main.py` (**Ejercicio 1**)
   - `app/core/config.py`: clase `Settings(BaseSettings)` leyendo `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_HOST`, `POSTGRES_PORT` y construyendo `database_url` (`postgresql+asyncpg://...`) con `@computed_field`; variables de JWT (`JWT_SECRET_KEY`, `JWT_ALGORITHM`, `JWT_EXPIRE_SECONDS`, `COOKIE_SECURE`), costo/concurrencia de `bcrypt` (`BCRYPT_ROUNDS`, `BCRYPT_MAX_CONCURRENCY`), `DB_POOL_SIZE` y `SQL_ECHO`. Ningún secreto (`POSTGRES_PASSWORD`, `JWT_SECRET_KEY`) tiene valor por defecto en código
   - `env.example`: plantilla actualizada con todas las variables de `Settings` sin secretos reales
@@ -106,7 +106,7 @@ Paso │ Agente A (Core / Seguridad)        │ Agente B (Dominio / Transaccione
 ---
 
 ### [C-02] `modelos-migraciones-trigger`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` completado
 - **Scope**: Nuevos modelos de usuarios/seguridad y movimientos de stock, modificaciones en `Cliente` y `Libro`, 3.ª migración autogenerada y 4.ª migración manual del disparador append-only (**Ejercicio 2** y parte del **Ejercicio 7**)
   - `app/modules/usuarios/models.py`: modelos `Usuario` (`usuario`, email único, `activo`, `debe_cambiar_password`), `AsignacionRol` (`asignacion_rol`, FKs `usuario_id` y `otorgada_por`, `CHECK rol IN ('ADMIN', 'VENDEDOR', 'CLIENTE')`, índice único parcial `uq_asignacion_rol_abierta` sobre `(usuario_id, rol) WHERE revocada_en IS NULL`), `IntentoAcceso` (`intento_acceso`, índice compuesto `(email, ip, cuando)`) y `EventoSeguridad` (`evento_seguridad`)
   - `app/modules/libros/models.py`: nuevo modelo `MovimientoStock` (`movimiento_stock`, FKs a `libro`, `venta` opcional y `usuario`, `CHECK cantidad <> 0`); en `Libro` agregar `borrado_en: datetime | None` (`TIMESTAMPTZ NULL`) y reemplazar `UNIQUE` simple de `isbn` por índice único parcial `uq_libro_isbn_vigente` sobre `(isbn) WHERE borrado_en IS NULL` (`postgresql_where`)
@@ -126,7 +126,7 @@ Paso │ Agente A (Core / Seguridad)        │ Agente B (Dominio / Transaccione
 ## FASE 1 — Infraestructura de Persistencia y Contratos Base (Ejercicios 3a y 6a)
 
 ### [C-03] `core-repositorios-uow-paginacion`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` completado
 - **Scope**: Repositorios genéricos (`BaseRepository`, `SoftDeleteRepository`), `UnitOfWork` base y envoltorio de paginación (**Ejercicio 3** parcial y **Ejercicio 6** parcial)
   - `app/core/repository.py`:
     - `BaseRepository[T]`: recibe `session: AsyncSession` y la clase `model: type[T]` en el constructor; implementa `get_by_id`, `get_all` (con paginación y opciones de carga), `count`, `add`, `update`, `delete`; ejecuta únicamente `await self.session.flush()` y `refresh()`, **nunca `commit()`**

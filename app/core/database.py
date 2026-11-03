@@ -10,7 +10,9 @@ from app.core.config import settings
 def create_engine() -> AsyncEngine:
     return create_async_engine(
         settings.database_url,
-        echo=settings.echo_sql,
+        echo=settings.sql_echo,
+        pool_size=settings.db_pool_size,
+        max_overflow=settings.db_pool_size,
     )
 
 

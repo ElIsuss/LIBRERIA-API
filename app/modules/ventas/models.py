@@ -40,6 +40,7 @@ class Venta(SQLModel, table=True):
 
     cliente: Cliente = Relationship(back_populates="ventas")
     renglones: list["RenglonVenta"] = Relationship(back_populates="venta")
+    movimientos_stock: list["MovimientoStock"] = Relationship(back_populates="venta")
 
 
 class RenglonVenta(SQLModel, table=True):
