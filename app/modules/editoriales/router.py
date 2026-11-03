@@ -48,6 +48,8 @@ async def actualizar(
 @router.get("/{editorial_id}/libros", response_model=list[schemas.LibroResumen])
 async def listar_libros(
     editorial_id: int,
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     session: AsyncSession = Depends(get_session),
 ) -> list[schemas.LibroResumen]:
-    return await service.listar_libros(session, editorial_id)
+    return await service.listar_libros(session, editorial_id, limit, offset)

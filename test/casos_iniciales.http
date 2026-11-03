@@ -1,7 +1,7 @@
 @baseUrl = http://localhost:8000
 
 ### ==============================================================================
-### CASOS DE PRUEBA INICIALES (C-01 a C-04)
+### CASOS DE PRUEBA INICIALES (C-01 a C-08)
 ### ==============================================================================
 
 ### C-01: Un parámetro de ruta que no es entero
@@ -101,10 +101,12 @@ Content-Type: application/json
 GET {{baseUrl}}/libros/?titulo=%27%20OR%20%271%27=%271
 
 
-
-### C-07: Detalle de un libro (evidencia de cantidad fija de consultas sin N+1)
-# Resultado esperado: 200 OK con detalle del libro, editorial, género y autores (emite número fijo de consultas SQL)
+### C-07: Detalle de un libro y de una venta (evidencia de cantidad fija de consultas sin N+1)
+# 1. Detalle de un libro (3 consultas SQL fijas)
 GET {{baseUrl}}/libros/2
+
+### 2. Detalle de una venta (2 consultas SQL fijas)
+GET {{baseUrl}}/ventas/1
 
 ### Listar libros para ver IDs disponibles
 GET {{baseUrl}}/libros/

@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.database import get_session
 from app.modules.clientes import schemas, service
+from app.modules.ventas import schemas as ventas_schemas, service as ventas_service
 
 router = APIRouter(prefix="/clientes", tags=["clientes"])
 
@@ -47,3 +48,13 @@ async def crear_perfil(
     session: AsyncSession = Depends(get_session),
 ) -> schemas.PerfilRead:
     return await service.crear_perfil(session, cliente_id, datos)
+
+
+@router.get("/{cliente_id}/ventas", response_model=list[ventas_schemas.VentaRead])
+async def listar_ventas(
+    cliente_id: int,
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    session: AsyncSession = Depends(get_session),
+) -> list[ventas_schemas.VentaRead]:
+    return await ventas_service.listar_por_cliente(session, cliente_id, limit, offset)

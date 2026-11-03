@@ -25,20 +25,25 @@ class VentaCreate(BaseModel):
         return self
 
 
-class RenglonVentaRead(BaseModel):
+class ClienteEnVenta(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    nombre: str
+    email: str
+
+
+class RenglonVentaRead(BaseModel):
     libro_id: int
+    titulo: str
     cantidad: int
     precio_unitario: Decimal
+    subtotal: Decimal
 
 
 class VentaRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     fecha: datetime
     total: Decimal
-    cliente_id: int
+    cliente: ClienteEnVenta
     renglones: list[RenglonVentaRead]

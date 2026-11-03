@@ -116,10 +116,51 @@ Si el puerto 8000 está ocupado, usá `--port 8001` como en el ejemplo.
 | GET | `/editoriales/` | `limit`, `offset` → lista | 200, 422 |
 | GET | `/editoriales/{id}` | `EditorialRead` | 200, 404, 422 |
 | PATCH | `/editoriales/{id}` | `EditorialUpdate` → `EditorialRead` | 200, 404, 409 |
-| GET | `/editoriales/{id}/libros` | Libros de la editorial | 200, 404 |
+| GET | `/editoriales/{id}/libros` | `limit`, `offset` → Libros de la editorial | 200, 404, 422 |
 
-> **Pendiente.** Faltan los módulos de `generos`, `autores`, `libros`,
-> `clientes` y `ventas`.
+### Géneros
+
+| Método | Ruta | Respuesta | Códigos |
+|---|---|---|---|
+| POST | `/generos/` | `GeneroCreate` → `GeneroRead` | 201, 409, 422 |
+| GET | `/generos/` | `limit`, `offset` → lista de `GeneroRead` | 200, 422 |
+| GET | `/generos/{id}/libros` | `limit`, `offset` → Libros del género | 200, 404, 422 |
+
+### Autores
+
+| Método | Ruta | Respuesta | Códigos |
+|---|---|---|---|
+| POST | `/autores/` | `AutorCreate` → `AutorRead` | 201, 422 |
+| GET | `/autores/{id}` | `AutorRead` | 200, 404, 422 |
+| PATCH | `/autores/{id}` | `AutorUpdate` → `AutorRead` | 200, 404, 422 |
+| GET | `/autores/{id}/libros` | `limit`, `offset` → Libros con `rol` y `orden` | 200, 404, 422 |
+
+### Libros
+
+| Método | Ruta | Respuesta | Códigos |
+|---|---|---|---|
+| POST | `/libros/` | `LibroCreate` (con autores) → `LibroDetalle` | 201, 409, 422 |
+| GET | `/libros/` | `limit`, `offset`, `titulo`, `genero_id` → lista de `LibroLista` | 200, 422 |
+| GET | `/libros/{id}` | `LibroDetalle` (con editorial, género y autores) | 200, 404, 422 |
+| PATCH | `/libros/{id}` | `LibroUpdate` → `LibroDetalle` | 200, 404, 409, 422 |
+
+### Clientes
+
+| Método | Ruta | Respuesta | Códigos |
+|---|---|---|---|
+| POST | `/clientes/` | `ClienteCreate` → `ClienteRead` | 201, 409, 422 |
+| GET | `/clientes/{id}` | `ClienteRead` (con su perfil) | 200, 404, 422 |
+| PATCH | `/clientes/{id}` | `ClienteUpdate` → `ClienteRead` | 200, 404, 409, 422 |
+| POST | `/clientes/{id}/perfil` | `PerfilCreate` → `PerfilRead` | 201, 404, 409, 422 |
+| GET | `/clientes/{id}/ventas` | `limit`, `offset` → Ventas del cliente (`VentaRead`) | 200, 404, 422 |
+
+### Ventas
+
+| Método | Ruta | Respuesta | Códigos |
+|---|---|---|---|
+| POST | `/ventas/` | `VentaCreate` (con renglones) → `VentaRead` | 201, 409, 422 |
+| GET | `/ventas/` | `limit`, `offset` → lista de `VentaRead` | 200, 422 |
+| GET | `/ventas/{id}` | `VentaRead` (con cliente y renglones) | 200, 404, 422 |
 
 ---
 
@@ -128,6 +169,7 @@ Si el puerto 8000 está ocupado, usá `--port 8001` como en el ejemplo.
 ```
 app/
 ├── main.py                 lifespan y registro de routers
+├── seed.py                 carga de datos iniciales
 ├── core/
 │   ├── config.py           lee DATABASE_URL del entorno
 │   └── database.py         motor, fábrica de sesiones, get_session
@@ -189,7 +231,7 @@ Los casos de prueba (C-01 a C-08) se encuentran en la carpeta `test/casos_inicia
 
 ## Evidencia del caso C-07
 
-Fragmento real de la consola con `ECHO_SQL=true` al consultar el detalle de un libro (`GET /libros/2`):
+### 1. Detalle de un libro (`GET /libros/2`, 3 consultas fijas sin importar cuántos autores tenga)
 
 ```text
 2026-10-13 23:10:31,096 INFO sqlalchemy.engine.Engine BEGIN (implicit)
@@ -204,4 +246,18 @@ FROM autor
 WHERE autor.id IN ($1::INTEGER)
 INFO:     127.0.0.1:50338 - "GET /libros/2 HTTP/1.1" 200 OK
 2026-10-13 23:10:31,250 INFO sqlalchemy.engine.Engine ROLLBACK
+```
+
+### 2. Detalle de una venta (`GET /ventas/1`, 2 consultas fijas sin importar cuántos renglones tenga)
+
+```text
+INFO sqlalchemy.engine.Engine BEGIN (implicit)
+INFO sqlalchemy.engine.Engine SELECT venta.id, venta.fecha, venta.total, venta.cliente_id, cliente_1.id AS id_1, cliente_1.nombre, cliente_1.email 
+FROM venta LEFT OUTER JOIN cliente AS cliente_1 ON cliente_1.id = venta.cliente_id 
+WHERE venta.id = $1::INTEGER
+INFO sqlalchemy.engine.Engine SELECT renglon_venta.venta_id AS renglon_venta_venta_id, renglon_venta.id AS renglon_venta_id, renglon_venta.libro_id AS renglon_venta_libro_id, renglon_venta.cantidad AS renglon_venta_cantidad, renglon_venta.precio_unitario AS renglon_venta_precio_unitario, libro_1.id AS id_1, libro_1.isbn AS isbn_1, libro_1.titulo AS titulo_1, libro_1.precio AS precio_1, libro_1.stock AS stock_1, libro_1.editorial_id AS editorial_id_1, libro_1.genero_id AS genero_id_1 
+FROM renglon_venta LEFT OUTER JOIN libro AS libro_1 ON libro_1.id = renglon_venta.libro_id 
+WHERE renglon_venta.venta_id IN ($1::INTEGER)
+INFO:     127.0.0.1:50339 - "GET /ventas/1 HTTP/1.1" 200 OK
+INFO sqlalchemy.engine.Engine ROLLBACK
 ```

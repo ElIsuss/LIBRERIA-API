@@ -70,13 +70,20 @@ async def actualizar(
     return editorial
 
 
-async def listar_libros(session: AsyncSession, editorial_id: int) -> list[Libro]:
+async def listar_libros(
+    session: AsyncSession,
+    editorial_id: int,
+    limit: int,
+    offset: int,
+) -> list[Libro]:
     await obtener_por_id(session, editorial_id)
 
     statement = (
         select(Libro)
         .where(Libro.editorial_id == editorial_id)
         .order_by(Libro.titulo, Libro.id)
+        .limit(limit)
+        .offset(offset)
     )
     result = await session.exec(statement)
     return list(result.all())
