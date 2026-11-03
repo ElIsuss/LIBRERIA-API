@@ -139,3 +139,79 @@ Antes de dar por terminado un archivo ejecutable —script de seed, caso de prue
 1. ¿Funciona si el proyecto está en otra carpeta?
 2. ¿Funciona en la PC de otro compañero con otras credenciales?
 3. ¿Aparece alguna ruta absoluta o password si se abre el archivo?
+
+
+---
+
+# Nuevas reglas del agente por el flujo SDD
+
+*(Nota: Todo lo que se encuentra arriba de esta línea —secciones 1 a 8— corresponde a las reglas obligatorias originales conservadas íntegramente del TP anterior / fase previa, y sigue teniendo prioridad absoluta. Todo lo que sigue a continuación fue agregado por el flujo de fundación SDD / OpenSpec para el Parcial de las Unidades 1 a 6).*
+
+## 9. Stack Tecnológico (`requirements.txt`)
+
+| Capa | Paquete (`requirements.txt`) / Tecnología | Uso en el proyecto |
+| --- | --- | --- |
+| **Lenguaje** | Python 3.12+ | Tipado moderno, `asyncio`, `contextlib` |
+| **Base de Datos** | PostgreSQL 16+ | Persistencia relacional, restricciones `CHECK`/`UNIQUE`, índices parciales y triggers |
+| **Framework Web** | `fastapi[standard]` | API REST asincrónica (`async def`), inyección con `Depends()`, `BackgroundTasks` |
+| **Servidor ASGI** | `uvicorn` | Ejecución del servidor HTTP asincrónico |
+| **ORM / Modelos** | `sqlmodel` | Definición de modelos de tabla (`table=True`) |
+| **Motor y Sesiones** | `sqlalchemy[asyncio]` | `AsyncEngine`, `async_sessionmaker`, `joinedload`, `selectinload`, índices parciales |
+| **Driver DB** | `asyncpg` | Controlador asincrónico para PostgreSQL (`postgresql+asyncpg://`) |
+| **Migraciones** | `alembic` | Versionado de esquema con plantilla asincrónica (4 migraciones en total) |
+| **Seguridad (Hash)** | `bcrypt` | Hashing de contraseñas fuera del event loop (`to_thread` + `Semaphore`, máx. 72 bytes UTF-8) |
+| **Seguridad (Tokens)** | `pyjwt` | Firma y verificación de tokens JWT transportados en cookie `HttpOnly` |
+| **Entorno (.env)** | `python-dotenv` | Carga de variables desde `.env` (migraciones Alembic y scripts) |
+| **Configuración** | `pydantic-settings` | `Settings(BaseSettings)` para validación de variables de entorno y `@computed_field` |
+
+## 10. Base de Conocimiento y Discovery
+
+- **Discovery del Parcial**: [`discovery/discovery.md`](discovery/discovery.md)
+- **Índice de la Knowledge Base**: [`knowledge-base/README.md`](knowledge-base/README.md)
+  - [`knowledge-base/01_vision_y_objetivos.md`](knowledge-base/01_vision_y_objetivos.md) — Propósito, objetivos por actor y alcance (Ejercicios 1 al 8; Ejercicios 9 y 10 ya completados sobre el TP 1-4).
+  - [`knowledge-base/02_descripcion_general.md`](knowledge-base/02_descripcion_general.md) — Stack, arquitectura en 5 capas (`Router → Service → UoW → Repository → Model`), los 2 grupos de rutas y tabla de endpoints.
+  - [`knowledge-base/03_actores_y_roles.md`](knowledge-base/03_actores_y_roles.md) — Vigencia de roles en `asignacion_rol`, matriz RBAC y rutas abiertas vs protegidas.
+  - [`knowledge-base/04_modelo_de_datos.md`](knowledge-base/04_modelo_de_datos.md) — Las 14 tablas, ERD, índices únicos parciales, trigger append-only y dataset de `seed.py`.
+  - [`knowledge-base/05_reglas_de_negocio.md`](knowledge-base/05_reglas_de_negocio.md) — Reglas `RN-01` a `RN-16`.
+  - [`knowledge-base/06_funcionalidades.md`](knowledge-base/06_funcionalidades.md) — Épicas e historias de usuario (`US-001` a `US-008`).
+  - [`knowledge-base/07_flujos_principales.md`](knowledge-base/07_flujos_principales.md) — Flujos E2E (Login con rate-limit y sesión independiente, Auto-registro, Autorización en BD, Venta con descuento de stock).
+  - [`knowledge-base/08_arquitectura_propuesta.md`](knowledge-base/08_arquitectura_propuesta.md) — Patrones, estructura de directorios y variables de entorno.
+  - [`knowledge-base/09_decisiones_y_supuestos.md`](knowledge-base/09_decisiones_y_supuestos.md) — Decisiones `DD-01` a `DD-06` y supuestos `SU-01`/`SU-02`.
+  - [`knowledge-base/10_preguntas_abiertas.md`](knowledge-base/10_preguntas_abiertas.md) — Diferencias entre el TP (Caps 1-4) y el Parcial (Caps 1-6).
+
+## 11. Skills Disponibles por Rol
+
+| Rol de Agente | Responsabilidad | Skills que utiliza |
+| --- | --- | --- |
+| **Orquestación / Planificación SDD** | Exploración, propuesta, sincronización y archivo de changes | `openspec-explore`, `openspec-propose`, `openspec-update-change`, `openspec-sync-specs`, `openspec-archive-change` |
+| **Implementación Backend (FastAPI / SQLModel / UoW)** | Ejecución de tareas de los changes `C-01` a `C-08` respetando autorización previa | `openspec-apply-change` |
+| **Fundación y Documentación** | Discovery, Knowledge Base, Roadmap y Registro de Skills | `discovery-research`, `kb-creator`, `roadmap-generator`, `agents-md-generator` |
+
+> Los compact rules de cada skill los resuelve el orquestador desde `.atl/skill-registry.md` (generado por `skill-registry`; no versionado — está en `.gitignore`).
+
+## 12. Roadmap de Changes (`CHANGES.md` — Ejercicios 1 al 8)
+
+El mapa completo de implementación vive en [`CHANGES.md`](CHANGES.md). Abarca **exclusivamente los Ejercicios 1 al 8** (los Ejercicios 9 y 10 ya fueron realizados previamente sobre el estado anterior del TP):
+
+- **Camino crítico (8 changes)**: `C-01` → `C-02` → `C-03` → `C-04` → `C-05` → `C-06` → `C-07` → `C-08`
+  - `C-01` `config-lifespan-health` *(Ejercicio 1)* — **Primer change recomendado**
+  - `C-02` `modelos-migraciones-trigger` *(Ejercicios 2 y 7a)*
+  - `C-03` `core-repositorios-uow-paginacion` *(Ejercicios 3a y 6a)*
+  - `C-04` `autenticacion-seguridad` *(Ejercicios 4 y 7b)*
+  - `C-05` `autorizacion-usuarios-eventos` *(Ejercicio 5)*
+  - `C-06` `catalogo-stock-baja-logica` *(Ejercicios 3b, 6b y 8a)*
+  - `C-07` `clientes-ventas-transaccionales` *(Ejercicios 5, 6c y 8b)*
+  - `C-08` `seed-casos-prueba-documentacion` *(Ejercicio 8c)*
+
+## 13. Reglas Duras Específicas del Parcial (Unidades 1 a 6)
+
+> Reglas globales de orquestación, governance y memoria persistente (Engram) ya definidas en el entorno global: el proyecto las hereda, supeditadas siempre a las **Reglas 1 a 8** de este archivo (autorización explícita previa antes de cualquier cambio).
+
+- **NUNCA ejecutar `commit()` en un repositorio** → Los repositorios (`BaseRepository`, `SoftDeleteRepository` y repositorios de módulo) sólo hacen `await self.session.flush()`; el único que hace `commit()` o `rollback()` es el `UnitOfWork` al salir del bloque `async with uow:`.
+- **NUNCA cerrar la sesión dentro del `UnitOfWork`** → La sesión se inyecta con `Depends(get_session)`, es compartida entre las dependencias de autenticación (`get_usuario_actual`, `requiere_rol`) y el `UnitOfWork`, y la cierra `get_session` al terminar la petición.
+- **NUNCA usar el `UnitOfWork` de la petición para `intento_acceso`** → Es la única tabla que se graba en su propia sesión y transacción independiente para que el conteo de intentos fallidos sobreviva al error `401` del login (`RN-07`).
+- **NUNCA ejecutar `bcrypt` en el hilo del event loop ni dentro de la transacción** → Siempre usar `await asyncio.to_thread(...)` bajo un `asyncio.Semaphore`, validando antes `len(password.encode("utf-8")) <= 72` en los schemas de entrada (`422`) y calculando el hash **antes** de abrir el `UnitOfWork`.
+- **NUNCA enviar ni leer el JWT fuera de la cookie `access_token`** → El token viaja únicamente en cookie `HttpOnly` (`SameSite=Lax`, `Max-Age`, `Secure` configurable); nunca en el cuerpo JSON ni por cabecera `Authorization`.
+- **NUNCA decidir permisos confiando en los roles del JWT** → `requiere_rol` consulta siempre `asignacion_rol` en la base de datos en cada petición (`RN-04`).
+- **NUNCA modificar `libro.stock` por fuera del punto único de escritura** → Todo cambio de stock (alta con `stock_inicial`, reposición y venta) pasa por el mismo método que actualiza `libro.stock` e inserta en `movimiento_stock` (`RN-11`), protegido además por el trigger append-only en PostgreSQL (`RN-12`).
+- **Usar siempre `model_config = ConfigDict(extra="forbid")`** en todos los esquemas Pydantic de entrada.
