@@ -172,7 +172,7 @@ Paso │ Agente A (Core / Seguridad)        │ Agente B (Dominio / Transaccione
 ---
 
 ### [C-05] `autorizacion-usuarios-eventos`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` completado
 - **Scope**: Dependencias de autenticación/autorización en tiempo real, bloqueo por cambio obligatorio de contraseña y gestión de usuarios, roles y eventos de seguridad (**Ejercicio 5**)
   - `app/core/dependencies.py`:
     - `get_usuario_actual`: lee exclusivamente `request.cookies.get("access_token")`, valida JWT y carga el `Usuario` activo usando la **misma sesión `Depends(get_session)`** que el `UnitOfWork` (`401 Unauthorized` si falta, venció, es inválido o está inactivo)

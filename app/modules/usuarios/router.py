@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.dependencies import get_usuario_actual, requiere_rol
+from app.core.paginacion import Page
 from app.core.security import (
     clear_auth_cookie,
     decode_access_token,
@@ -13,12 +15,16 @@ from app.core.security import (
 )
 from app.modules.usuarios.models import Usuario
 from app.modules.usuarios.schemas import (
+    AsignacionRolResponse,
+    AsignarRolRequest,
     CambiarPasswordRequest,
+    EventoSeguridadRead,
     LoginRequest,
     LoginResponse,
     MensajeResponse,
     RegistroRequest,
     UsuarioAuthResponse,
+    UsuarioCreateRequest,
     YoResponse,
 )
 from app.modules.usuarios.service import UsuarioService
@@ -27,44 +33,26 @@ from app.modules.usuarios.unit_of_work import (
     get_usuario_uow,
 )
 
+# Router para Grupo Abierto (/auth)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+# Routers para Grupo Protegido (/usuarios y /eventos)
+usuarios_admin_router = APIRouter(
+    prefix="/usuarios",
+    tags=["usuarios"],
+    dependencies=[Depends(requiere_rol("ADMIN"))],
+)
 
-async def get_current_user_from_cookie(
-    request: Request,
-    uow: UsuarioUnitOfWork = Depends(get_usuario_uow),
-) -> tuple[Usuario, dict[str, Any]]:
-    """Extrae el token JWT de la cookie access_token, lo valida y recupera al usuario activo."""
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No se encontró la cookie de autenticación",
-        )
+eventos_router = APIRouter(
+    prefix="/eventos",
+    tags=["eventos"],
+    dependencies=[Depends(requiere_rol("ADMIN"))],
+)
 
-    payload = decode_access_token(token)
-    if payload is None or "sub" not in payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token inválido o expirado",
-        )
 
-    try:
-        user_id = int(payload["sub"])
-    except (ValueError, TypeError):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Identificador de usuario inválido en el token",
-        )
-
-    usuario = await uow.usuarios.get_by_id(user_id)
-    if usuario is None or not usuario.activo:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuario no encontrado o inactivo",
-        )
-
-    return usuario, payload
+# ------------------------------------------------------------------------------
+# Endpoints de Autenticación (/auth)
+# ------------------------------------------------------------------------------
 
 
 @router.post(
@@ -126,10 +114,12 @@ async def logout(res: Response) -> MensajeResponse:
     status_code=status.HTTP_200_OK,
 )
 async def obtener_perfil_yo(
-    auth_data: tuple[Usuario, dict[str, Any]] = Depends(get_current_user_from_cookie),
+    request: Request,
+    usuario: Usuario = Depends(get_usuario_actual),
     uow: UsuarioUnitOfWork = Depends(get_usuario_uow),
 ) -> YoResponse:
-    usuario, payload = auth_data
+    token = request.cookies.get("access_token", "")
+    payload = decode_access_token(token) or {}
     roles_token = payload.get("roles", [])
     return await UsuarioService.obtener_perfil_yo(usuario, roles_token, uow)
 
@@ -141,8 +131,83 @@ async def obtener_perfil_yo(
 )
 async def cambiar_password(
     request: CambiarPasswordRequest,
-    auth_data: tuple[Usuario, dict[str, Any]] = Depends(get_current_user_from_cookie),
+    usuario: Usuario = Depends(get_usuario_actual),
     uow: UsuarioUnitOfWork = Depends(get_usuario_uow),
 ) -> MensajeResponse:
-    usuario, _ = auth_data
     return await UsuarioService.cambiar_password(usuario, request, uow)
+
+
+# ------------------------------------------------------------------------------
+# Endpoints de Administración de Personal y Roles (/usuarios)
+# ------------------------------------------------------------------------------
+
+
+@usuarios_admin_router.post(
+    "",
+    response_model=UsuarioAuthResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def crear_personal(
+    request: UsuarioCreateRequest,
+    admin: Usuario = Depends(get_usuario_actual),
+    uow: UsuarioUnitOfWork = Depends(get_usuario_uow),
+) -> UsuarioAuthResponse:
+    return await UsuarioService.crear_personal(admin, request, uow)
+
+
+@usuarios_admin_router.get(
+    "/{id}/roles",
+    response_model=list[AsignacionRolResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def listar_roles_usuario(
+    id: int,
+    uow: UsuarioUnitOfWork = Depends(get_usuario_uow),
+) -> list[AsignacionRolResponse]:
+    return await UsuarioService.listar_roles_usuario(id, uow)
+
+
+@usuarios_admin_router.post(
+    "/{id}/roles",
+    response_model=AsignacionRolResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def asignar_rol(
+    id: int,
+    request: AsignarRolRequest,
+    admin: Usuario = Depends(get_usuario_actual),
+    uow: UsuarioUnitOfWork = Depends(get_usuario_uow),
+) -> AsignacionRolResponse:
+    return await UsuarioService.asignar_rol(admin, id, request, uow)
+
+
+@usuarios_admin_router.delete(
+    "/{id}/roles/{rol}",
+    response_model=MensajeResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def revocar_rol(
+    id: int,
+    rol: str,
+    admin: Usuario = Depends(get_usuario_actual),
+    uow: UsuarioUnitOfWork = Depends(get_usuario_uow),
+) -> MensajeResponse:
+    return await UsuarioService.revocar_rol(admin, id, rol, uow)
+
+
+# ------------------------------------------------------------------------------
+# Endpoints de Auditoría de Seguridad (/eventos)
+# ------------------------------------------------------------------------------
+
+
+@eventos_router.get(
+    "",
+    response_model=Page[EventoSeguridadRead],
+    status_code=status.HTTP_200_OK,
+)
+async def listar_eventos(
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=20, ge=1, le=100),
+    uow: UsuarioUnitOfWork = Depends(get_usuario_uow),
+) -> Page[EventoSeguridadRead]:
+    return await UsuarioService.listar_eventos_paginado(page=page, size=size, uow=uow)

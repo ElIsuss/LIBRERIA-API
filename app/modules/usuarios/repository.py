@@ -58,6 +58,28 @@ class AsignacionRolRepository(BaseRepository[AsignacionRol]):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def contar_administradores_vigentes(self) -> int:
+        """Cuenta la cantidad de usuarios distintos con rol ADMIN vigente (RN-05)."""
+        now = datetime.now(timezone.utc)
+        stmt = (
+            select(func.count(func.distinct(AsignacionRol.usuario_id)))
+            .where(
+                AsignacionRol.rol == "ADMIN",
+                AsignacionRol.revocada_en.is_(None),
+                or_(AsignacionRol.vence_en.is_(None), AsignacionRol.vence_en > now),
+            )
+        )
+        result = await self.session.execute(stmt)
+        return int(result.scalar_one())
+
+    async def cerrar_asignacion(self, usuario_id: int, rol: str) -> AsignacionRol | None:
+        """Marca revocada_en = now() en la asignación abierta existente y ejecuta flush()."""
+        asignacion = await self.get_asignacion_abierta(usuario_id, rol)
+        if asignacion:
+            asignacion.revocada_en = datetime.now(timezone.utc)
+            await self.session.flush()
+        return asignacion
+
 
 class IntentoAccesoRepository(BaseRepository[IntentoAcceso]):
     def __init__(self, session: AsyncSession):
@@ -121,3 +143,20 @@ class EventoSeguridadRepository(BaseRepository[EventoSeguridad]):
             cuando=datetime.now(timezone.utc),
         )
         return await self.add(evento)
+
+    async def listar_paginado(self, page: int, size: int) -> tuple[list[EventoSeguridad], int]:
+        """Devuelve (items, total) ordenado cronológicamente de forma descendente."""
+        offset = (page - 1) * size
+        total_stmt = select(func.count()).select_from(EventoSeguridad)
+        total_res = await self.session.execute(total_stmt)
+        total = int(total_res.scalar_one())
+
+        stmt = (
+            select(EventoSeguridad)
+            .order_by(EventoSeguridad.cuando.desc())
+            .offset(offset)
+            .limit(size)
+        )
+        result = await self.session.execute(stmt)
+        items = list(result.scalars().all())
+        return items, total
