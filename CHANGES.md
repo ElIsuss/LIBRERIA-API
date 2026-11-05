@@ -146,7 +146,7 @@ Paso │ Agente A (Core / Seguridad)        │ Agente B (Dominio / Transaccione
 ## FASE 2 — Seguridad: Autenticación, Autorización y Auditoría (Ejercicios 4, 5 y 7b)
 
 ### [C-04] `autenticacion-seguridad`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` completado
 - **Scope**: Hashing `bcrypt` no bloqueante, JWT en cookie `HttpOnly`, rate-limiting en sesión propia y endpoints `/auth/*` (**Ejercicio 4** y parte del **Ejercicio 7**)
   - `app/core/security.py`:
     - `bcrypt` con costo configurable (`settings.bcrypt_rounds`), ejecutado siempre en `await asyncio.to_thread(...)` bajo un `asyncio.Semaphore(settings.bcrypt_max_concurrency)` y **antes** de abrir el `UnitOfWork`

@@ -14,6 +14,7 @@ from app.modules.editoriales.router import router as editoriales_router
 from app.modules.generos.router import router as generos_router
 from app.modules.health.router import router as health_router
 from app.modules.libros.router import router as libros_router
+from app.modules.usuarios.router import router as auth_router
 from app.modules.ventas.router import router as ventas_router
 
 logging.basicConfig(
@@ -40,6 +41,7 @@ open_router = APIRouter()
 protected_router = APIRouter()
 
 open_router.include_router(health_router)
+open_router.include_router(auth_router)
 open_router.include_router(editoriales_router)
 open_router.include_router(generos_router)
 open_router.include_router(autores_router)
