@@ -35,7 +35,10 @@ class BaseRepository(Generic[T]):
         for filter_ in filters:
             stmt = stmt.where(filter_)
         if order_by is not None:
-            stmt = stmt.order_by(order_by)
+            if isinstance(order_by, (list, tuple)):
+                stmt = stmt.order_by(*order_by)
+            else:
+                stmt = stmt.order_by(order_by)
         if page is not None and size is not None:
             stmt = stmt.offset((page - 1) * size).limit(size)
         for option in options:
@@ -95,7 +98,10 @@ class SoftDeleteRepository(BaseRepository[T]):
         for filter_ in filters:
             stmt = stmt.where(filter_)
         if order_by is not None:
-            stmt = stmt.order_by(order_by)
+            if isinstance(order_by, (list, tuple)):
+                stmt = stmt.order_by(*order_by)
+            else:
+                stmt = stmt.order_by(order_by)
         if page is not None and size is not None:
             stmt = stmt.offset((page - 1) * size).limit(size)
         for option in options:

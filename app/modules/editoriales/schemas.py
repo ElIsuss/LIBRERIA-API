@@ -4,11 +4,15 @@ from pydantic import BaseModel, ConfigDict
 
 
 class EditorialCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     nombre: str
     pais: str
 
 
 class EditorialUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     nombre: str | None = None
     pais: str | None = None
 

@@ -2,6 +2,8 @@ from pydantic import BaseModel, ConfigDict
 
 
 class GeneroCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     nombre: str
 
 

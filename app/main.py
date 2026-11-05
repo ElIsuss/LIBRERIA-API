@@ -9,12 +9,12 @@ from app.core.config import settings
 from app.core.database import create_engine, create_session_factory
 from app.core.dependencies import verificar_password_actualizada
 from app.modules import *  # noqa: F401,F403  registra todos los modelos en SQLModel.metadata
-from app.modules.autores.router import router as autores_router
+from app.modules.autores.router import autores_admin_router, router as autores_router
 from app.modules.clientes.router import router as clientes_router
-from app.modules.editoriales.router import router as editoriales_router
-from app.modules.generos.router import router as generos_router
+from app.modules.editoriales.router import editoriales_admin_router, router as editoriales_router
+from app.modules.generos.router import generos_admin_router, router as generos_router
 from app.modules.health.router import router as health_router
-from app.modules.libros.router import router as libros_router
+from app.modules.libros.router import libros_admin_router, router as libros_router
 from app.modules.usuarios.router import (
     eventos_router,
     router as auth_router,
@@ -53,6 +53,10 @@ open_router.include_router(autores_router)
 open_router.include_router(libros_router)
 protected_router.include_router(usuarios_admin_router)
 protected_router.include_router(eventos_router)
+protected_router.include_router(editoriales_admin_router)
+protected_router.include_router(generos_admin_router)
+protected_router.include_router(autores_admin_router)
+protected_router.include_router(libros_admin_router)
 protected_router.include_router(clientes_router)
 protected_router.include_router(ventas_router)
 

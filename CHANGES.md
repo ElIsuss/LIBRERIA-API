@@ -200,7 +200,7 @@ Paso │ Agente A (Core / Seguridad)        │ Agente B (Dominio / Transaccione
 > `C-06` implementa el punto único de escritura de stock en `libros`, que luego es reutilizado por `C-07` al registrar ventas.
 
 ### [C-06] `catalogo-stock-baja-logica`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` completado
 - **Scope**: Refactorización de `editoriales`, `generos`, `autores` y `libros` a `Repository + UnitOfWork`, contratos estrictos (`extra="forbid"`), paginación por envoltorio, baja lógica de libros y punto único de escritura de stock (**Ejercicios 3, 6 y 8**)
   - Módulos `editoriales`, `generos` y `autores`:
     - Creación de `repository.py` y `unit_of_work.py` en cada módulo con precargas declaradas en el repositorio
