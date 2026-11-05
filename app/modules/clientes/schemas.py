@@ -2,16 +2,22 @@ from pydantic import BaseModel, ConfigDict, EmailStr
 
 
 class ClienteCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     nombre: str
     email: EmailStr
 
 
 class ClienteUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     nombre: str | None = None
     email: EmailStr | None = None
 
 
 class PerfilCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     telefono: str
     direccion: str
 

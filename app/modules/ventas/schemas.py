@@ -5,11 +5,15 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class RenglonVentaCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     libro_id: int = Field(gt=0)
     cantidad: int = Field(gt=0)
 
 
 class VentaCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     cliente_id: int = Field(gt=0)
     renglones: list[RenglonVentaCreate] = Field(min_length=1)
 

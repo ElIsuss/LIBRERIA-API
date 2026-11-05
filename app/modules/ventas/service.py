@@ -1,14 +1,12 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from decimal import Decimal
 
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import joinedload, selectinload
-from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.modules.clientes.models import Cliente
 from app.modules.libros.models import Libro
 from app.modules.ventas.models import RenglonVenta, Venta
 from app.modules.ventas.schemas import (
@@ -17,25 +15,18 @@ from app.modules.ventas.schemas import (
     VentaCreate,
     VentaRead,
 )
+from app.modules.ventas.unit_of_work import VentasUnitOfWork
 
 logger = logging.getLogger(__name__)
 
 MSG_CONFLICTO = (
-    "No se pudo crear la venta: el cliente o alguno de los libros "
-    "no existe, o hay una restricción de integridad incumplida"
+    "No se pudo registrar la venta por una restricción de integridad"
 )
-
-
-def _opciones_detalle():
-    """Estrategia de precarga por relacion (sin N+1):
-    - cliente: muchos a uno -> joinedload (misma consulta)
-    - renglones -> libro: uno a muchos + muchos a uno -> selectinload + joinedload
-      (1 consulta adicional fija con IN, sin importar cuantos renglones tenga)
-    """
-    return (
-        joinedload(Venta.cliente),
-        selectinload(Venta.renglones).joinedload(RenglonVenta.libro),
-    )
+MSG_CLIENTE_INEXISTENTE = "No se puede crear la venta: el cliente indicado no existe"
+MSG_LIBRO_INEXISTENTE = (
+    "No se puede crear la venta: alguno de los libros indicados no existe o fue dado de baja"
+)
+MSG_STOCK_INSUFICIENTE = "No se puede crear la venta: stock insuficiente para el libro '{titulo}'"
 
 
 def _a_read(venta: Venta) -> VentaRead:
@@ -47,163 +38,171 @@ def _a_read(venta: Venta) -> VentaRead:
         cliente=ClienteEnVenta.model_validate(venta.cliente),
         renglones=[
             RenglonVentaRead(
-                libro_id=r.libro_id,
-                titulo=r.libro.titulo,
-                cantidad=r.cantidad,
-                precio_unitario=r.precio_unitario,
-                subtotal=r.precio_unitario * r.cantidad,
+                libro_id=renglon.libro_id,
+                titulo=renglon.libro.titulo,
+                cantidad=renglon.cantidad,
+                precio_unitario=renglon.precio_unitario,
+                subtotal=renglon.precio_unitario * renglon.cantidad,
             )
-            for r in renglones_ordenados
+            for renglon in renglones_ordenados
         ],
     )
 
 
 async def enviar_comprobante(venta_id: int) -> None:
     await asyncio.sleep(0.5)
-    logger.info(f"Aviso: comprobante de la venta #{venta_id} enviado al cliente en segundo plano.")
-
-
-async def crear(session: AsyncSession, datos: VentaCreate) -> VentaRead:
-    try:
-        # 1. Comprobar que exista el cliente.
-        cliente = await session.get(Cliente, datos.cliente_id)
-
-        if cliente is None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="No se puede crear la venta: el cliente indicado no existe",
-            )
-
-        # 2. Buscar todos los libros solicitados en una sola consulta.
-        ids_libros = [renglon.libro_id for renglon in datos.renglones]
-
-        statement = select(Libro).where(Libro.id.in_(ids_libros))
-        resultado = await session.exec(statement)
-        libros = resultado.all()
-
-        libros_por_id = {libro.id: libro for libro in libros}
-        ids_inexistentes = set(ids_libros) - set(libros_por_id)
-
-        if ids_inexistentes:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=(
-                    "No se puede crear la venta: no existen los libros "
-                    f"con estos IDs: {sorted(ids_inexistentes)}"
-                ),
-            )
-
-        # 3. Calcular el total usando los precios de la base de datos.
-        total = Decimal("0.00")
-        renglones_nuevos = []
-
-        for renglon_dato in datos.renglones:
-            libro = libros_por_id[renglon_dato.libro_id]
-            precio = libro.precio
-            subtotal = precio * renglon_dato.cantidad
-            total += subtotal
-
-            renglones_nuevos.append(
-                RenglonVenta(
-                    libro_id=libro.id,
-                    cantidad=renglon_dato.cantidad,
-                    precio_unitario=precio,
-                )
-            )
-
-        # 4. Crear la venta y obtener su ID.
-        venta = Venta(
-            cliente_id=datos.cliente_id,
-            total=total,
-        )
-        session.add(venta)
-        await session.flush()
-
-        # 5. Asociar cada renglón con la venta creada.
-        for renglon in renglones_nuevos:
-            renglon.venta_id = venta.id
-
-        session.add_all(renglones_nuevos)
-        await session.flush()
-
-        # 6. Confirmar todas las operaciones juntas.
-        await session.commit()
-
-    except HTTPException:
-        await session.rollback()
-        raise
-
-    except IntegrityError:
-        await session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=MSG_CONFLICTO,
-        )
-
-    # 7. Devolver el resultado sin depender de una carga perezosa.
-    return VentaRead(
-        id=venta.id,
-        fecha=venta.fecha,
-        total=venta.total,
-        cliente=ClienteEnVenta.model_validate(cliente),
-        renglones=[
-            RenglonVentaRead(
-                libro_id=renglon.libro_id,
-                titulo=libros_por_id[renglon.libro_id].titulo,
-                cantidad=renglon.cantidad,
-                precio_unitario=renglon.precio_unitario,
-                subtotal=renglon.precio_unitario * renglon.cantidad,
-            )
-            for renglon in renglones_nuevos
-        ],
+    logger.info(
+        "Aviso: comprobante de la venta #%s enviado al cliente en segundo plano.",
+        venta_id,
     )
 
 
-async def obtener_por_id(session: AsyncSession, venta_id: int) -> VentaRead:
-    statement = select(Venta).options(*_opciones_detalle()).where(Venta.id == venta_id)
-    result = await session.exec(statement)
-    venta = result.first()
+async def crear(
+    uow: VentasUnitOfWork,
+    datos: VentaCreate,
+    usuario_id: int,
+) -> VentaRead:
+    ids_libros = [renglon.libro_id for renglon in datos.renglones]
 
+    try:
+        async with uow:
+            cliente = await uow.clientes.get_by_id(datos.cliente_id)
+            if cliente is None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=MSG_CLIENTE_INEXISTENTE,
+                )
+
+            libros = await uow.libros.get_all(
+                filters=[Libro.id.in_(ids_libros)],
+                include_deleted=False,
+            )
+            libros_por_id = {libro.id: libro for libro in libros}
+            ids_faltantes = sorted(set(ids_libros) - set(libros_por_id))
+            if ids_faltantes:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=MSG_LIBRO_INEXISTENTE,
+                )
+
+            for renglon_dato in datos.renglones:
+                libro = libros_por_id[renglon_dato.libro_id]
+                if libro.stock < renglon_dato.cantidad:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=MSG_STOCK_INSUFICIENTE.format(titulo=libro.titulo),
+                    )
+
+            total = sum(
+                (
+                    libros_por_id[renglon_dato.libro_id].precio
+                    * renglon_dato.cantidad
+                    for renglon_dato in datos.renglones
+                ),
+                Decimal("0.00"),
+            )
+
+            venta = Venta(cliente_id=datos.cliente_id, total=total)
+            venta.renglones = [
+                RenglonVenta(
+                    libro_id=renglon_dato.libro_id,
+                    cantidad=renglon_dato.cantidad,
+                    precio_unitario=libros_por_id[renglon_dato.libro_id].precio,
+                )
+                for renglon_dato in datos.renglones
+            ]
+            venta = await uow.ventas.add(venta)
+
+            for renglon_dato in datos.renglones:
+                await uow.registrar_movimiento_stock(
+                    libro=libros_por_id[renglon_dato.libro_id],
+                    usuario_id=usuario_id,
+                    cantidad=-renglon_dato.cantidad,
+                    motivo="Venta",
+                    venta_id=venta.id,
+                )
+    except IntegrityError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=MSG_CONFLICTO,
+        ) from exc
+
+    venta_con_detalle = await uow.ventas.get_detalle(venta.id)
+    return _a_read(venta_con_detalle)
+
+
+async def listar_paginado(
+    uow: VentasUnitOfWork,
+    page: int = 1,
+    size: int = 20,
+) -> Page[VentaRead]:
+    from app.core.paginacion import Page
+    items, total = await uow.ventas.listar_paginado(page=page, size=size)
+    items_read = [_a_read(v) for v in items]
+    try:
+        return Page.create(items=items_read, total=total, page=page, size=size)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"La página {page} solicitada excede el total de páginas disponibles",
+        )
+
+
+async def listar_por_cliente(
+    uow: VentasUnitOfWork,
+    cliente_id: int,
+) -> list[VentaRead]:
+    cliente = await uow.clientes.get_by_id(cliente_id)
+    if cliente is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No existe un cliente con ese id",
+        )
+    ventas = await uow.ventas.listar_por_cliente(cliente_id)
+    return [_a_read(v) for v in ventas]
+
+
+async def listar_por_usuario(
+    uow: VentasUnitOfWork,
+    usuario: Usuario,
+    page: int = 1,
+    size: int = 20,
+) -> Page[VentaRead]:
+    from app.core.paginacion import Page
+    cliente = await uow.clientes.get_by_usuario_id(usuario.id)
+    if cliente is None:
+        return Page.create(items=[], total=0, page=page, size=size)
+    items, total = await uow.ventas.listar_paginado(page=page, size=size, cliente_id=cliente.id)
+    items_read = [_a_read(v) for v in items]
+    try:
+        return Page.create(items=items_read, total=total, page=page, size=size)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"La página {page} solicitada excede el total de páginas disponibles",
+        )
+
+
+async def obtener_por_id_con_acceso(
+    uow: VentasUnitOfWork,
+    venta_id: int,
+    usuario: Usuario,
+) -> VentaRead:
+    venta = await uow.ventas.get_detalle(venta_id)
     if venta is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No existe una venta con ese id",
         )
+    is_owner = False
+    if venta.cliente and venta.cliente.usuario_id == usuario.id:
+        is_owner = True
 
+    if not is_owner:
+        roles_vigentes = await uow.roles.get_roles_vigentes(usuario.id)
+        if not set(roles_vigentes).intersection({"VENDEDOR", "ADMIN"}):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tiene permisos para ver esta venta",
+            )
     return _a_read(venta)
-
-
-async def listar(session: AsyncSession, limit: int, offset: int) -> list[VentaRead]:
-    statement = (
-        select(Venta)
-        .options(*_opciones_detalle())
-        .order_by(Venta.fecha.desc(), Venta.id.desc())
-        .limit(limit)
-        .offset(offset)
-    )
-    result = await session.exec(statement)
-    return [_a_read(venta) for venta in result.all()]
-
-
-async def listar_por_cliente(
-    session: AsyncSession,
-    cliente_id: int,
-    limit: int,
-    offset: int,
-) -> list[VentaRead]:
-    if await session.get(Cliente, cliente_id) is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No existe un cliente con ese id",
-        )
-
-    statement = (
-        select(Venta)
-        .options(*_opciones_detalle())
-        .where(Venta.cliente_id == cliente_id)
-        .order_by(Venta.fecha.desc(), Venta.id.desc())
-        .limit(limit)
-        .offset(offset)
-    )
-    result = await session.exec(statement)
-    return [_a_read(venta) for venta in result.all()]

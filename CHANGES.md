@@ -226,7 +226,7 @@ Paso │ Agente A (Core / Seguridad)        │ Agente B (Dominio / Transaccione
 ---
 
 ### [C-07] `clientes-ventas-transaccionales`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` completado
 - **Scope**: Refactorización de `clientes` y `ventas` a `Repository + UnitOfWork`, venta atómica con descuento y movimiento de stock, `/mis-ventas`, control de dueño en `/ventas/{id}` y `BackgroundTasks` visible en consola (**Ejercicios 5, 6 y 8**)
   - Módulo `clientes` (`app/modules/clientes/`):
     - `ClienteRepository` (con precarga de `perfil`) y `ClientesUnitOfWork`

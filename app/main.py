@@ -20,10 +20,14 @@ from app.modules.usuarios.router import (
     router as auth_router,
     usuarios_admin_router,
 )
-from app.modules.ventas.router import router as ventas_router
+from app.modules.ventas.router import (
+    mis_ventas_router,
+    ventas_personal_router,
+    ventas_router,
+)
 
 logging.basicConfig(
-    level=logging.INFO if settings.sql_echo else logging.WARNING,
+    level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
@@ -58,6 +62,8 @@ protected_router.include_router(generos_admin_router)
 protected_router.include_router(autores_admin_router)
 protected_router.include_router(libros_admin_router)
 protected_router.include_router(clientes_router)
+protected_router.include_router(ventas_personal_router)
+protected_router.include_router(mis_ventas_router)
 protected_router.include_router(ventas_router)
 
 app = FastAPI(title="Libreria API", version="1.0.0", lifespan=lifespan)
