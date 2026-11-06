@@ -82,10 +82,17 @@ Para verificar en qué versión está la base:
 ### 6. Carga de datos iniciales
 
 ```powershell
-python -m app.seed
+python seed.py
 ```
 
-Esto puebla la base de datos con editoriales, géneros, autores, libros y clientes de prueba.
+Esto puebla la base de datos con los 5 usuarios, catálogo TP (3 editoriales, 3 géneros, 6 autores, 5 libros con stock 10/5/8/3/1), 3 clientes (Lucía con perfil, Tomás sin perfil, Ana vinculada a `ana@example.com`), la venta 1 de Lucía (`1` Rayuela + `2` *Ficciones*, `total = 69000.00`), los 7 movimientos de stock (cumpliendo `libro.stock == SUM(movimiento_stock.cantidad)`) y 1 evento de seguridad (`actor="SISTEMA"`, `acción="Carga de los datos iniciales"`).
+
+Para verificar la consistencia de los movimientos de stock:
+```powershell
+psql -U usuario -d base -f test/solo_agregado.sql
+```
+Este script demuestra que `UPDATE` y `DELETE` sobre `movimiento_stock` son rechazados por el trigger append-only (RN-12).
+```
 
 ### 7. Arrancar el servidor
 
@@ -169,10 +176,10 @@ Si el puerto 8000 está ocupado, usá `--port 8001` como en el ejemplo.
 ```
 app/
 ├── main.py                 lifespan y registro de routers
-├── seed.py                 carga de datos iniciales
 ├── core/
 │   ├── config.py           lee DATABASE_URL del entorno
 │   └── database.py         motor, fábrica de sesiones, get_session
+│── seed.py                 carga de datos iniciales (ejecutable con `python seed.py` desde la raíz)
 └── modules/
     └── <módulo>/
         ├── models.py       tabla, restricciones, relaciones
@@ -225,7 +232,7 @@ es como se verifica que no haya problemas de carga por relación (N+1).
 
 ## Casos de prueba
 
-Los casos de prueba (C-01 a C-08) se encuentran en la carpeta `test/casos_iniciales.http` y pueden ejecutarse con la extensión *REST Client* de VS Code.
+Los casos de prueba (C-01 a C-16) se encuentran en la carpeta `test/casos_iniciales.http` y pueden ejecutarse con la extensión *REST Client* de VS Code. Están numerados del C-01 al C-08 (casos base) y del C-09 al C-16 (casos adicionales de catálogo, ventas y perfil), más los casos C-14 (trigger append-only) y C-15 (consistencia de consultas SQL).
 
 ---
 

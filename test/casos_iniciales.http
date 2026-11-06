@@ -101,6 +101,41 @@ Content-Type: application/json
 GET {{baseUrl}}/libros/?titulo=%27%20OR%20%271%27=%271
 
 
+### C-09: Listado de editoriales con paginación
+# Resultado esperado: 200 OK con lista de editoriales paginada
+GET {{baseUrl}}/editoriales?page=1&size=10
+
+
+### C-10: Listado de géneros con paginación
+# Resultado esperado: 200 OK con lista de géneros paginada
+GET {{baseUrl}}/generos?page=1&size=10
+
+
+### C-11: Listado de autores con paginación
+# Resultado esperado: 200 OK con lista de autores paginada
+GET {{baseUrl}}/autores?page=1&size=10
+
+
+### C-12: Listado de libros con filtros (título y género)
+# Resultado esperado: 200 OK con lista de libros filtrada y paginada
+GET {{baseUrl}}/libros?titulo=Rayuela&genero_id=1
+
+
+### C-13: Listado de ventas con paginación
+# Resultado esperado: 200 OK con lista de ventas paginada
+GET {{baseUrl}}/ventas?page=1&size=10
+
+
+### C-15: Detalle de una venta específica (evidencia de cantidad fija de consultas sin N+1)
+# Resultado esperado: 200 OK con datos de la venta y 2 consultas SQL fijas
+GET {{baseUrl}}/ventas/1
+
+
+### C-16: Verificación de perfil de cliente
+# Resultado esperado: 200 OK con perfil de cliente o 404 si no tiene perfil
+GET {{baseUrl}}/clientes/1/perfil
+
+
 ### C-07: Detalle de un libro y de una venta (evidencia de cantidad fija de consultas sin N+1)
 # 1. Detalle de un libro (3 consultas SQL fijas)
 GET {{baseUrl}}/libros/2
