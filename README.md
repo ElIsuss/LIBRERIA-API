@@ -179,7 +179,6 @@ app/
 ├── core/
 │   ├── config.py           lee DATABASE_URL del entorno
 │   └── database.py         motor, fábrica de sesiones, get_session
-│── seed.py                 carga de datos iniciales (ejecutable con `python seed.py` desde la raíz)
 └── modules/
     └── <módulo>/
         ├── models.py       tabla, restricciones, relaciones
