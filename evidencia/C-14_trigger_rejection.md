@@ -1,18 +1,27 @@
-evidencia C-14: Rechazo del trigger append-only en movimiento_stock
+# Evidencia Caso C-14: Rechazo del Trigger Append-Only en `movimiento_stock`
 
-Escenario: Ejecutar test/solo_agregado.sql con psql y observar el error.
-Comando esperado: psql -U usuario -d nombre_base -f test/solo_agregado.sql
+## 1. Contexto y Regla de Negocio Evaluada
+- **Regla RN-12**: La tabla `movimiento_stock` es de solo inserción (*append-only*). Ningún usuario ni proceso puede modificar ni borrar registros históricos de inventario.
+- **Mecanismo**: Disparador PL/pgSQL `trg_movimiento_stock_append_only` instalado en la 4.ª migración de Alembic (`f22d38b1dde0`).
 
-Resultado esperado en la salida:
-- Intento de UPDATE sobre movimiento_stock: error del trigger, no se modifican filas
-- Intento de DELETE sobre movimiento_stock: error del trigger, no se eliminan filas
-- COUNT(*) FROM movimiento_stock: mismo número de filas que antes de los intentos
+## 2. Comando Ejecutado
+```bash
+psql -U postgres -d libreria -f test/solo_agregado.sql
+```
 
-Archivos asociados:
-- test/solo_agregado.sql: script SQL que ejecuta los intentos y muestra los errores
+## 3. Salida Real de Consola Obtenida
+```text
+psql:test/solo_agregado.sql:20: NOTICE:  Éxito: El UPDATE fue rechazado por el trigger. Error: No se permite modificar ni eliminar movimientos de stock
+DO
+psql:test/solo_agregado.sql:35: NOTICE:  Éxito: El DELETE fue rechazado por el trigger. Error: No se permite modificar ni eliminar movimientos de stock
+DO
+ total_filas 
+-------------
+           7
+(1 row)
+```
 
-Cómo generar:
-1. Tener la base de datos con las 4 migraciones aplicadas (C-02)
-2. Ejecutar: psql -U usuario -d db -f test/solo_agregado.sql
-3. Capturar la salida de consola (errores del trigger)
-4. Guardar en este archivo o en evidencias/ con nombre descriptivo
+## 4. Conclusión Técnica
+- El intento de `UPDATE` sobre una fila existente lanzó la excepción prevista: *"No se permite modificar ni eliminar movimientos de stock"*.
+- El intento de `DELETE` sobre una fila existente lanzó la misma excepción.
+- La consulta `SELECT COUNT(*) FROM movimiento_stock` retornó **7 filas**, demostrando que el estado de la tabla permaneció inalterado tras los dos intentos de manipulación fraudulenta o accidental.
