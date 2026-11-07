@@ -251,7 +251,7 @@ Paso │ Agente A (Core / Seguridad)        │ Agente B (Dominio / Transaccione
 ## FASE 4 — Carga Inicial, Casos de Prueba y Evidencia (Ejercicio 8c)
 
 ### [C-08] `seed-casos-prueba-documentacion`
-- **Estado**: `[ ]` pendiente
+- **Estado**: `[x]` completado
 - **Scope**: Script `seed.py` en raíz con el estado inicial del parcial, batería de pruebas `C-01` a `C-16`, script `test/solo_agregado.sql`, evidencia `C-14`/`C-15` y actualización de `README.md` (**Ejercicio 8**)
   - `seed.py` (en la raíz del proyecto, ejecutable con `python seed.py`):
     - Vacía las tablas en el orden correcto y carga: los **5 usuarios** con sus roles (`admin@example.com`, `admin2@example.com`, `vendedor@example.com`, `ana@example.com`, `nuevo@example.com` con `debe_cambiar_password=True`), el catálogo del TP (**3 editoriales, 3 géneros, 6 autores, 5 libros** con stock final `10, 5, 8, 3, 1`), los **3 clientes** (Lucía con perfil, Tomás sin perfil, Ana vinculada a `ana@example.com`), la **venta 1** de Lucía registrada por `vendedor@example.com` (`1` *Rayuela* + `2` *Ficciones*, `total = 69000.00`), los **7 movimientos de stock** (cumpliendo `libro.stock == SUM(movimiento_stock.cantidad)`) y **1 evento de seguridad** (`actor="SISTEMA"`, `accion="Carga de los datos iniciales"`)
